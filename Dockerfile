@@ -1,13 +1,24 @@
-FROM maven:3.8.2-openjdk-8 AS builder
+# Stage 1: Build the application using Maven
+FROM maven:3.8.2-openjdk-8 AS mavenbuilder
 
-WORKDIR /build
+# Define build argument
+ARG TEST=/var/lib/
+
+# Set working directory
+WORKDIR ${TEST}
+
+# Copy source code
 COPY . .
+
+# Build the WAR file
 RUN mvn clean package
 
-FROM tomcat:9-jre8-temurin
 
-COPY --from=builder /build/target/*.war /usr/local/tomcat/webapps/ROOT.war
+# Stage 2: Deploy WAR file to Tomcat
+FROM tomcat:jre8-temurin-focal
 
-EXPOSE 8080
+# Define argument again for this stage
+ARG TEST=/var/lib/
 
-CMD ["catalina.sh","run"]
+# Copy WAR file from builder stage to Tomcat webapps
+COPY --from=mavenbuilder ${TEST}/target/*.war /usr/local/tomcat/webapps/
