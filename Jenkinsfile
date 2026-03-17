@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE  = "docker.io/pradeepreddyhub/hello-world"
+        DOCKER_IMAGE  = "docker.io/pradeepreddyhub/hello-world:latest"
         IMAGE_TAG     = "${BUILD_NUMBER}"
         HELM_CHART    = "hello-world"
         HELM_VERSION  = "0.1.0"
