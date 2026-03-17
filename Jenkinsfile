@@ -18,11 +18,6 @@ spec:
   - name: jnlp
     image: jenkins/inbound-agent:latest
     args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
-    env:
-    - name: JENKINS_URL
-      value: "http://jenkins-service:8080/jenkins"
-    - name: JENKINS_TUNNEL
-      value: "jenkins-service:50000"
     volumeMounts:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
