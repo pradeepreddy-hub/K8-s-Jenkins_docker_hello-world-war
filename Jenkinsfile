@@ -35,9 +35,16 @@ pipeline {
                 sh """
                 helm lint $HELM_CHART
                 helm package $HELM_CHART
+
                 curl -u $JFROG_CREDS_USR:$JFROG_CREDS_PSW \
                   -T ${HELM_CHART}-${HELM_VERSION}.tgz \
                   ${JFROG_URL}/${HELM_CHART}-${HELM_VERSION}.tgz
+
+                helm repo index . --url ${JFROG_URL}
+
+                curl -u $JFROG_CREDS_USR:$JFROG_CREDS_PSW \
+                  -T index.yaml \
+                  ${JFROG_URL}/index.yaml
                 """
             }
         }
