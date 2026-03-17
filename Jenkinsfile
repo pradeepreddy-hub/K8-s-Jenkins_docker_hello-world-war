@@ -10,12 +10,12 @@ spec:
   containers:
   - name: jnlp
     image: jenkins/inbound-agent:latest
-    args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
+    args: ['$(JENKINS_SECRET)', '$(JENKINS_NAME)']
 
   - name: kaniko
-    image: gcr.io/kaniko-project/executor:latest
-    args:
-    - --sleep=9999999
+    image: gcr.io/kaniko-project/executor:debug
+    command: ["/busybox/cat"]
+    tty: true
     volumeMounts:
     - name: kaniko-secret
       mountPath: /kaniko/.docker
