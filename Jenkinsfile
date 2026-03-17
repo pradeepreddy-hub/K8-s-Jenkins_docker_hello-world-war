@@ -13,6 +13,7 @@ spec:
     volumeMounts:
     - name: workspace-volume
       mountPath: /home/jenkins/agent
+
   - name: kaniko
     image: gcr.io/kaniko-project/executor:debug
     command: ["/busybox/cat"]
@@ -22,13 +23,22 @@ spec:
       mountPath: /kaniko/.docker
     - name: workspace-volume
       mountPath: /home/jenkins/agent
+
+  - name: tools
+    image: alpine/helm:latest        # has helm + curl + apk
+    command: ["cat"]
+    tty: true
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent
+
   volumes:
   - name: kaniko-secret
     secret:
       secretName: dockerhub-secret
       items:
-      - key: .dockerconfigjson      # key stored in the secret
-        path: config.json           # filename kaniko expects to find
+      - key: .dockerconfigjson
+        path: config.json
   - name: workspace-volume
     emptyDir: {}
   restartPolicy: Never
