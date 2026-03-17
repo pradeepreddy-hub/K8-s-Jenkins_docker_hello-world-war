@@ -6,7 +6,8 @@ apiVersion: v1
 kind: Pod
 spec:
   serviceAccountName: jenkins
-
+  securityContext:
+    runAsUser: 0
   volumes:
   - name: workspace-volume
     emptyDir: {}
