@@ -10,38 +10,16 @@ spec:
   - name: jnlp
     image: jenkins/inbound-agent:latest
     args: ["$(JENKINS_SECRET)", "$(JENKINS_NAME)"]
-    volumeMounts:
-    - name: workspace-volume
-      mountPath: /home/jenkins/agent
 
   - name: kaniko
     image: gcr.io/kaniko-project/executor:debug
     command: ["/busybox/cat"]
     tty: true
-    volumeMounts:
-    - name: kaniko-secret
-      mountPath: /kaniko/.docker
-    - name: workspace-volume
-      mountPath: /home/jenkins/agent
 
   - name: tools
     image: dtzar/helm-kubectl:latest
     command: ["cat"]
     tty: true
-    volumeMounts:
-    - name: workspace-volume
-      mountPath: /home/jenkins/agent
-
-  volumes:
-  - name: kaniko-secret
-    secret:
-      secretName: dockerhub-secret
-      items:
-      - key: .dockerconfigjson
-        path: config.json
-  - name: workspace-volume
-    emptyDir: {}
-  restartPolicy: Never
 '''
         }
     }
@@ -49,10 +27,16 @@ spec:
     environment {
         DOCKER_IMAGE = "docker.io/pradeepreddyhub/hello-world"
         IMAGE_TAG    = "${BUILD_NUMBER}"
+
         HELM_CHART   = "hello-world"
         HELM_VERSION = "0.2.0"
-        JFROG_URL    = "https://trial3sfswa.jfrog.io/artifactory/jenkins-helm"
-        KUBE_NS      = "default"
+
+        JFROG_PLATFORM = "https://trial3sfswa.jfrog.io"
+        JFROG_REPO     = "jenkins-helm"
+
+        BUILD_NAME   = "hello-world-war"
+        BUILD_NUMBER = "${BUILD_NUMBER}"
+
         JFROG_CREDS  = credentials('jfrog-creds')
     }
 
@@ -60,13 +44,14 @@ spec:
 
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/pradeepreddy-hub/Jenkins_docker_hello-world-war.git'
+                git branch: 'main',
+                url: 'https://github.com/pradeepreddy-hub/Jenkins_docker_hello-world-war.git'
             }
         }
 
         stage('Build & Push Image') {
             steps {
-                container('kaniko') {          // ✅ kaniko for image build only
+                container('kaniko') {
                     sh '''
                     /kaniko/executor \
                       --dockerfile=Dockerfile \
@@ -79,22 +64,39 @@ spec:
             }
         }
 
-        stage('Helm Package & Push') {
+        stage('Helm Package & Push (JFrog Build Info)') {
             steps {
-                container('tools') {           // ✅ tools for helm/curl
+                container('tools') {
                     sh '''
+                    # Install JFrog CLI
+                    curl -fL https://getcli.jfrog.io | sh
+                    mv jfrog /usr/local/bin/
+
+                    # Configure JFrog
+                    jfrog config add artifactory-server \
+                      --url=$JFROG_PLATFORM \
+                      --user=$JFROG_CREDS_USR \
+                      --password=$JFROG_CREDS_PSW \
+                      --interactive=false
+
+                    # Package Helm
                     helm lint $HELM_CHART
                     helm package $HELM_CHART
 
-                    curl -u $JFROG_CREDS_USR:$JFROG_CREDS_PSW \
-                      -T ${HELM_CHART}-${HELM_VERSION}.tgz \
-                      ${JFROG_URL}/${HELM_CHART}-${HELM_VERSION}.tgz
+                    # Upload Helm chart with build info
+                    jfrog rt u "${HELM_CHART}-${HELM_VERSION}.tgz" $JFROG_REPO/ \
+                      --build-name=$BUILD_NAME \
+                      --build-number=$BUILD_NUMBER
 
-                    helm repo index . --url ${JFROG_URL}
+                    # Upload index.yaml
+                    helm repo index . --url ${JFROG_PLATFORM}/artifactory/${JFROG_REPO}
 
-                    curl -u $JFROG_CREDS_USR:$JFROG_CREDS_PSW \
-                      -T index.yaml \
-                      ${JFROG_URL}/index.yaml
+                    jfrog rt u "index.yaml" $JFROG_REPO/ \
+                      --build-name=$BUILD_NAME \
+                      --build-number=$BUILD_NUMBER
+
+                    # Publish build info
+                    jfrog rt bp $BUILD_NAME $BUILD_NUMBER
                     '''
                 }
             }
