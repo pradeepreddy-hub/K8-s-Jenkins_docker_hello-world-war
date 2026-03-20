@@ -99,39 +99,6 @@ spec:
                 }
             }
         }
-
-        stage('Deploy to Kubernetes') {
-            steps {
-                container('tools') {           // ✅ tools for helm deploy
-                    sh '''
-                    helm repo add jfrog-helm ${JFROG_URL} \
-                      --username $JFROG_CREDS_USR \
-                      --password $JFROG_CREDS_PSW \
-                      --force-update
-
-                    helm repo update
-
-                    helm upgrade --install $HELM_CHART jfrog-helm/$HELM_CHART \
-                      --version $HELM_VERSION \
-                      --set image.tag=$IMAGE_TAG \
-                      --namespace $KUBE_NS \
-                      --wait --timeout 2m
-                    '''
-                }
-            }
-        }
-
-        stage('Verify') {
-            steps {
-                container('tools') {           // ✅ tools for kubectl
-                    sh '''
-                    kubectl rollout status deployment/$HELM_CHART -n $KUBE_NS
-                    kubectl get pods -n $KUBE_NS
-                    kubectl get svc -n $KUBE_NS
-                    '''
-                }
-            }
-        }
     }
 
     post {
